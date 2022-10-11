@@ -4,6 +4,8 @@ import hashlib
 import sys
 import time
 
+import pickle
+
 from bs4 import BeautifulSoup
 from pyvirtualdisplay.display import Display
 from selenium import webdriver
@@ -33,8 +35,11 @@ class ProtonmailClient:
             if not settings.show_browser:
                 self.virtual_display = Display(visible=0, size=(1366, 768))
                 self.virtual_display.start()
+            
+            profile = webdriver.FirefoxProfile()
+            profile.set_preference("general.useragent.override", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:63.0) Gecko/20100101 Firefox/63.0")
 
-            self.web_driver = webdriver.Firefox()
+            self.web_driver = webdriver.Firefox(profile)
 
             atexit.register(self.destroy)
         except Exception as e:
@@ -57,6 +62,15 @@ class ProtonmailClient:
         try:
             utilities.log("Logging in...")
             self.web_driver.get(variables.url)
+            time.sleep(10)
+            cookies = []
+            #cookies = pickle.load(open("cookies.pkl", "rb"))
+            for cookie in cookies:
+                print("Loading this cookie: " + str(cookie))
+                self.web_driver.add_cookie(cookie)
+
+            #pickle.dump(self.web_driver.get_cookies() , open("cookies.pkl","wb"))
+
             utilities.wait_for_elem(
                 self.web_driver, variables.element_login['username_id'], "id")
 
@@ -93,6 +107,7 @@ class ProtonmailClient:
             if utilities.wait_for_elem(self.web_driver, variables.element_login['after_login_detection_class'],
                                        "class"):
                 utilities.log("Logged in successfully")
+                pickle.dump(self.web_driver.get_cookies() , open("cookies.pkl","wb"))
             else:
                 raise Exception()
         except Exception as ignored_err:
@@ -106,7 +121,8 @@ class ProtonmailClient:
         """
         if not utilities.wait_for_elem(self.web_driver, variables.element_list_inbox['email_list_wrapper_id'], "id"):
             # for some reason the wrapper wasn't loaded
-            return None
+            print("Wrapper did not load, but this is likely deprecated, so it should be no issue.")
+            #return None
 
         utilities.wait_for_elem(
             self.web_driver, variables.element_list_inbox["individual_email_soupclass"][1:], "class",

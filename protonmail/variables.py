@@ -2,22 +2,23 @@
 # Current WebClient version: v3.14.10
 
 # Base URL for the ProtonMail web interface
-base_url = "https://mail.protonmail.com"
+base_url = "https://mail.proton.me"
 
 # Main URL for the login interface.
 url = base_url + "/login"
 
 # Pages that contain mails and their urls
 page_urls = dict(
-    inbox="https://mail.protonmail.com/inbox",
-    drafts="https://mail.protonmail.com/drafts",
-    sent="https://mail.protonmail.com/sent",
-    starred="https://mail.protonmail.com/starred",
-    archive="https://mail.protonmail.com/archive",
-    spam="https://mail.protonmail.com/spam",
-    trash="https://mail.protonmail.com/trash",
-    allmail="https://mail.protonmail.com/allmail",
-    account="https://mail.protonmail.com/account"
+    inbox="https://mail.proton.me/inbox",
+    drafts="https://mail.proton.me/drafts",
+    sent="https://mail.proton.me/sent",
+    starred="https://mail.proton.me/starred",
+    archive="https://mail.proton.me/archive",
+    spam="https://mail.proton.me/spam",
+    trash="https://mail.proton.me/trash",
+    allmail="https://mail.proton.me/all-mail",
+    # TODO: Working account URL; Below URL is broken
+    account="https://mail.proton.me/account"
 )
 
 # login variables
@@ -58,16 +59,16 @@ element_list_inbox = dict(
     email_list_wrapper_id="conversation-list-rows",
 
     # Class of the element representing an email in the conversation frame.
-    individual_email_soupclass=".conversation-wrapper .conversation",
+    individual_email_soupclass=".item-container-wrapper",
 
     # Class of the subject for an email.
-    individual_email_subject_soupclass=".subject-text",
+    individual_email_subject_soupclass="item-subject",
 
     # Class of the time sent for an email.
-    individual_email_time_soupclass=".time",
+    individual_email_time_soupclass="item-firstline-infos",
 
     # Class of the sender's name for an email.
-    individual_email_sender_name_soupclass=".senders-name"
+    individual_email_sender_name_soupclass="item-senders"
 )
 
 # send-mail variables

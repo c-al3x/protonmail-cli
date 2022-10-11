@@ -1,10 +1,10 @@
 import os
 
 # ProtonMail user name or email.
-username = ""
+username = "cristian.alex.r@protonmail.com"
 
 # ProtonMail user password.
-password = ""
+password = 'FcUf+dFlGkyu="}T)`-^'
 
 # Set date order
 # "asc | des"
@@ -40,7 +40,7 @@ load_wait = 1
 max_retries = 20
 
 # Do not hide the browser under xvfb, useful for debugging.
-show_browser = False
+show_browser = True
 
 # Directory to use for logging
 # user should have write access to this directory
