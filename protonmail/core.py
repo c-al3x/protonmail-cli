@@ -4,12 +4,19 @@ import hashlib
 import sys
 import time
 
+import os
+import re
 import pickle
+import base64
 
 from bs4 import BeautifulSoup
 from pyvirtualdisplay.display import Display
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.options import Options
 
 from . import mail, settings, utilities, variables
 
@@ -36,10 +43,14 @@ class ProtonmailClient:
                 self.virtual_display = Display(visible=0, size=(1366, 768))
                 self.virtual_display.start()
             
-            profile = webdriver.FirefoxProfile()
-            profile.set_preference("general.useragent.override", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:63.0) Gecko/20100101 Firefox/63.0")
+            options = Options()
+            options.set_preference("browser.download.folderList", 2)
+            options.set_preference("browser.download.manager.showWhenStarting", False)
+            options.set_preference("browser.download.dir", str(os.getcwd()) + "/downloads")
+            options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/x-gzip")
+            options.set_preference("general.useragent.override", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:63.0) Gecko/20100101 Firefox/63.0")
 
-            self.web_driver = webdriver.Firefox(profile)
+            self.web_driver = webdriver.Firefox(options=options)
 
             atexit.register(self.destroy)
         except Exception as e:
@@ -119,16 +130,20 @@ class ProtonmailClient:
         Reads and returns a list of Mails inside the current web driver's page
         :return: a list of Mail objects
         """
-        if not utilities.wait_for_elem(self.web_driver, variables.element_list_inbox['email_list_wrapper_id'], "id"):
+        #if not utilities.wait_for_elem(self.web_driver, variables.element_list_inbox['email_list_wrapper_id'], "id"):
             # for some reason the wrapper wasn't loaded
-            print("Wrapper did not load, but this is likely deprecated, so it should be no issue.")
+        #    print("Wrapper did not load, but this is likely deprecated, so it should be no issue.")
             #return None
+
+        print("Preparing to parse emails. This will take about 15 seconds. Please wait...")
+        time.sleep(15)
 
         utilities.wait_for_elem(
             self.web_driver, variables.element_list_inbox["individual_email_soupclass"][1:], "class",
             max_retries=3)
 
         soup = BeautifulSoup(self.web_driver.page_source, "html.parser")
+
         mails_soup = soup.select(
             variables.element_list_inbox['individual_email_soupclass'])
 
@@ -137,16 +152,120 @@ class ProtonmailClient:
         time_class = variables.element_list_inbox['individual_email_time_soupclass']
         sender_name_class = variables.element_list_inbox['individual_email_sender_name_soupclass']
 
+        print("Found " + str(len(mails_soup)) + " emails! Preparing to display them...")
+
+        email_index = 0
+
         for m in mails_soup:
             # @TODO mails without subject or title, etc.. are ignored
             try:
+                element = WebDriverWait(self.web_driver, 20).until(
+                    EC.presence_of_element_located((
+                        By.XPATH,
+                        #"//div[@class='flex-item-fluid flex flex-nowrap cursor-pointer opacity-on-hover-container item-container read']"
+                        #"//div[starts-with (@class,'flex-item-fluid flex flex-nowrap cursor-pointer opacity-on-hover-container item-container')]"
+                        "//div[@style='--index: " + str(email_index) + ";']"
+                    ))
+                )
+                #element.location_once_scrolled_into_view
+                #email_container = self.web_driver.find_element(By.CSS_SELECTOR, "div[style='--index: " + str(email_index) + ";']")
+                email_index += 1
+
+                self.web_driver.execute_script("arguments[0].click();", element)
+                #time.sleep(2)
+
+                element = WebDriverWait(self.web_driver, 20).until(
+                    EC.presence_of_element_located((
+                        By.XPATH,
+                        "//button[@data-testid='message-header-expanded:more-dropdown']"
+                    ))
+                )
+                #element.location_once_scrolled_into_view
+                self.web_driver.execute_script("arguments[0].click();", element)
+                
+                #time.sleep(2)
+
+                element = WebDriverWait(self.web_driver, 20).until(
+                    EC.presence_of_element_located((
+                        By.XPATH,
+                        "//button[@class='dropdown-item-button w100 pr1 pl1 pt0-5 pb0-5 text-left flex flex-nowrap flex-align-items-center']"
+                    ))
+                )
+                buttons = self.web_driver.find_elements_by_css_selector("button.dropdown-item-button");
+                buttons[3].click()
+                #self.web_driver.execute_script("arguments[0].click();", element)
+                
+                time.sleep(2)
+
+                # Get the list of all files and directories
+                path = str(os.getcwd()) + "/downloads"
+                dir_list = os.listdir(path)
+ 
+                print("Downloaded an email. Looking among files and directories in '", path, "' :")
+ 
+                # prints all files
+                print(dir_list)
+
+                # list of different types of file
+                filenames = dir_list
+
+                email_export_filename = ""
+                #email_export_filename = m.select(subject_class)[0].string + '.eml'
+
+                for file in filenames:
+                    # search given pattern in the line 
+                    match = re.search("\.eml$", file)
+                 
+                    # if match is found
+                    if match:
+                        print("Found the email: ", file)
+                        email_export_filename = file
+                        break
+
+                email_export = open(path + "/" + email_export_filename)
+                email_body_lines = []
+                email_body_start = None
+                content_description = False
+                is_plain_text = True
+                for line in email_export:
+                    if (not email_body_start and line.startswith("-----------------------")): 
+                        email_body_start = line
+                        content_description = True
+                    elif email_body_start:
+                        if ((email_body_start[:-1] + "--\n") == line):
+                            break
+                        elif content_description:
+                            if (line.startswith("Content-Type: multipart/related")):
+                                email_body_start = None
+                            elif (line.startswith("Content-Transfer-Encoding: base64")):
+                                is_plain_text = False
+                            elif (line.startswith("Content")):
+                                continue
+                            else:
+                                content_description = False
+                        # If there are attachments or other parts of the email, ignore them for now
+                        elif (line.startswith("-----------------------")):
+                            break
+                        else:
+                            email_body_lines.append(line)
+                email_body = ''.join(email_body_lines)
+                
+                if not is_plain_text:
+                    email_body = base64.b64decode(email_body)
+                print("Removing the downloaded email export: " + path + "/" + email_export_filename)
+                os.remove(path + "/" + email_export_filename)
+                email_export.close()
+
                 new_mail = mail.Mail(
                     subject=m.select(subject_class)[0].string,
                     time_received=m.select(time_class)[0].string,
-                    mail_alias=m.select(sender_name_class)[0].get("title"),
                     mail=m.select(sender_name_class)[0].string,
+                    body=email_body
                 )
                 mails.append(new_mail)
+
+                print("Finished preparing an email.")
+
             except Exception as e:
                 utilities.log("Skip mail... " + str(e))
                 continue

@@ -59,16 +59,16 @@ element_list_inbox = dict(
     email_list_wrapper_id="conversation-list-rows",
 
     # Class of the element representing an email in the conversation frame.
-    individual_email_soupclass=".item-container-wrapper",
+    individual_email_soupclass="div.item-container-wrapper",
 
     # Class of the subject for an email.
-    individual_email_subject_soupclass="item-subject",
+    individual_email_subject_soupclass="div.item-subject",
 
     # Class of the time sent for an email.
-    individual_email_time_soupclass="item-firstline-infos",
+    individual_email_time_soupclass="span.item-firstline-infos",
 
     # Class of the sender's name for an email.
-    individual_email_sender_name_soupclass="item-senders"
+    individual_email_sender_name_soupclass="div.item-senders"
 )
 
 # send-mail variables
